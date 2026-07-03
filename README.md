@@ -121,8 +121,7 @@ file on every push and deploys the stack to a VPS on `main`.
    ```bash
    sudo mkdir -p /var/www/flowrage-automation
    ```
-2. Put your production `.env` in that directory.
-3. Make sure Docker and Docker Compose are installed on the VPS.
+2. Make sure Docker and Docker Compose are installed on the VPS.
 
 ### GitHub secrets
 
@@ -132,25 +131,35 @@ Add these repository secrets for deployment:
 - `VPS_USERNAME`
 - `VPS_SSH_KEY`
 - `VPS_PORT`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DB`
+- `N8N_ENCRYPTION_KEY`
+- `N8N_USER_MANAGEMENT_JWT_SECRET`
+- `N8N_PORT`
+- `QDRANT_PORT`
+- `OLLAMA_PORT`
+- `OLLAMA_HOST` if you want to point n8n at an external Ollama instance
 
 ### Port selection
 
-The exposed host ports are controlled by your `.env` file:
+The exposed host ports are controlled by GitHub secrets and written into the
+server `.env` during deploy:
 
 - `N8N_PORT` defaults to `5678`
 - `QDRANT_PORT` defaults to `6333`
 - `OLLAMA_PORT` defaults to `11434`
 
-If any of those ports are already in use on the VPS, change the values before
-you deploy.
+If any of those ports are already in use on the VPS, change the values in
+GitHub secrets before you deploy. The workflow writes the `.env` file for you
+on the server.
 
 ### How deployment works
 
 - Pushes to `main` trigger the deploy job.
-- The workflow copies `docker-compose.yml`, `scripts/deploy.sh`, and
-  `n8n/demo-data` to the VPS.
-- The server script runs `docker compose --profile cpu pull` and then
-  `docker compose --profile cpu up -d --remove-orphans`.
+- The workflow copies `docker-compose.yml` and `n8n/demo-data` to the VPS.
+- The deploy step writes `.env` from GitHub secrets, then runs
+  `docker compose --profile cpu pull` and `docker compose --profile cpu up -d --remove-orphans`.
 
 If you want to run the stack with a GPU profile on the server, change
 `COMPOSE_PROFILE` in `.github/workflows/ci-cd.yml` and `scripts/deploy.sh` to
