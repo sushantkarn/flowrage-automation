@@ -67,16 +67,6 @@ jobs:
           source: "n8n/demo-data"
           target: "${{ env.DEPLOY_PATH }}/n8n"
 
-      - name: Copy deployment script
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "scripts/deploy.sh"
-          target: "${{ env.DEPLOY_PATH }}"
-
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -87,14 +77,25 @@ jobs:
           envs: DEPLOY_PATH,COMPOSE_PROFILE
           script: |
             set -e
-            if [ -f "${DEPLOY_PATH}/deploy.sh" ]; then
-              SCRIPT_PATH="${DEPLOY_PATH}/deploy.sh"
-            elif [ -f "${DEPLOY_PATH}/scripts/deploy.sh" ]; then
-              SCRIPT_PATH="${DEPLOY_PATH}/scripts/deploy.sh"
-            else
-              echo "ERROR: deploy.sh was not copied to the VPS"
-              find "${DEPLOY_PATH}" -maxdepth 2 -name 'deploy.sh' -print || true
+            cd "${DEPLOY_PATH}"
+            if [ ! -f ".env" ]; then
+              echo "ERROR: .env file not found in ${DEPLOY_PATH}"
               exit 1
             fi
-            chmod +x "$SCRIPT_PATH"
-            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "$SCRIPT_PATH"
+
+            N8N_PORT="$(grep -E '^N8N_PORT=' .env | cut -d= -f2- || true)"
+            QDRANT_PORT="$(grep -E '^QDRANT_PORT=' .env | cut -d= -f2- || true)"
+            OLLAMA_PORT="$(grep -E '^OLLAMA_PORT=' .env | cut -d= -f2- || true)"
+            N8N_PORT="${N8N_PORT:-5678}"
+            QDRANT_PORT="${QDRANT_PORT:-6333}"
+            OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+
+            for port in "$N8N_PORT" "$QDRANT_PORT" "$OLLAMA_PORT"; do
+              if ss -ltn "( sport = :$port )" | tail -n +2 | grep -q .; then
+                echo "ERROR: port $port is already in use on the VPS"
+                exit 1
+              fi
+            done
+
+            docker compose -f docker-compose.yml --profile "${COMPOSE_PROFILE}" pull
+            docker compose -f docker-compose.yml --profile "${COMPOSE_PROFILE}" up -d --remove-orphans
