@@ -110,6 +110,73 @@ cp .env.example .env # you should update secrets and passwords inside
 docker compose --profile cpu up
 ```
 
+## VPS CI/CD
+
+This repo includes a GitHub Actions workflow that validates the Docker Compose
+file on every push and deploys the stack to a VPS on `main`.
+
+### One-time VPS setup
+
+1. Create a deployment directory on your server, for example:
+   ```bash
+   sudo mkdir -p /var/www/flowrage-automation
+   ```
+2. Put your production `.env` in that directory.
+3. Make sure Docker and Docker Compose are installed on the VPS.
+
+### GitHub secrets
+
+Add these repository secrets for deployment:
+
+- `VPS_HOST`
+- `VPS_USERNAME`
+- `VPS_SSH_KEY`
+- `VPS_PORT`
+
+### Port selection
+
+The exposed host ports are controlled by your `.env` file:
+
+- `N8N_PORT` defaults to `5678`
+- `QDRANT_PORT` defaults to `6333`
+- `OLLAMA_PORT` defaults to `11434`
+
+If any of those ports are already in use on the VPS, change the values before
+you deploy.
+
+### How deployment works
+
+- Pushes to `main` trigger the deploy job.
+- The workflow copies `docker-compose.yml`, `scripts/deploy.sh`, and
+  `n8n/demo-data` to the VPS.
+- The server script runs `docker compose --profile cpu pull` and then
+  `docker compose --profile cpu up -d --remove-orphans`.
+
+If you want to run the stack with a GPU profile on the server, change
+`COMPOSE_PROFILE` in `.github/workflows/ci-cd.yml` and `scripts/deploy.sh` to
+`gpu-nvidia` or `gpu-amd`.
+
+### Open ports on the VPS
+
+If you want to expose the services directly, allow the chosen ports in your
+server firewall.
+
+For UFW:
+```bash
+sudo ufw allow 5678/tcp
+sudo ufw allow 6333/tcp
+sudo ufw allow 11434/tcp
+sudo ufw reload
+```
+
+For firewalld:
+```bash
+sudo firewall-cmd --permanent --add-port=5678/tcp
+sudo firewall-cmd --permanent --add-port=6333/tcp
+sudo firewall-cmd --permanent --add-port=11434/tcp
+sudo firewall-cmd --reload
+```
+
 ## ⚡️ Quick start and usage
 
 The core of the Self-hosted AI Starter Kit is a Docker Compose file, pre-configured with network and storage settings, minimizing the need for additional installations.

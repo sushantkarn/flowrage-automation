@@ -1,0 +1,91 @@
+name: Flowrage Automation CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  COMPOSE_PROFILE: cpu
+  DEPLOY_PATH: /var/www/flowrage-automation
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare local env file
+        run: cp .env.example .env
+
+      - name: Validate Docker Compose config
+        run: docker compose -f docker-compose.yml --profile "$COMPOSE_PROFILE" config >/dev/null
+
+  deploy-production:
+    needs: validate-compose
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create deployment directories
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+            mkdir -p "${{ env.DEPLOY_PATH }}/scripts"
+            mkdir -p "${{ env.DEPLOY_PATH }}/n8n"
+
+      - name: Copy Docker Compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "docker-compose.yml"
+          target: "${{ env.DEPLOY_PATH }}"
+
+      - name: Copy demo data
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "n8n/demo-data"
+          target: "${{ env.DEPLOY_PATH }}/n8n"
+
+      - name: Copy deployment script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "scripts/deploy.sh"
+          target: "${{ env.DEPLOY_PATH }}/scripts"
+
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: DEPLOY_PATH,COMPOSE_PROFILE
+          script: |
+            set -e
+            chmod +x "${DEPLOY_PATH}/scripts/deploy.sh"
+            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "${DEPLOY_PATH}/scripts/deploy.sh"
