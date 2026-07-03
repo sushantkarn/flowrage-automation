@@ -93,17 +93,19 @@ jobs:
             QDRANT_PORT="${QDRANT_PORT:-6333}"
             OLLAMA_PORT="${OLLAMA_PORT:-11434}"
 
-            cat > .env <<EOF
-POSTGRES_USER=${POSTGRES_USER}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-POSTGRES_DB=${POSTGRES_DB}
-N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
-N8N_PORT=${N8N_PORT}
-QDRANT_PORT=${QDRANT_PORT}
-OLLAMA_PORT=${OLLAMA_PORT}
-${OLLAMA_HOST:+OLLAMA_HOST=${OLLAMA_HOST}}
-EOF
+            {
+              printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
+              printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
+              printf 'POSTGRES_DB=%s\n' "$POSTGRES_DB"
+              printf 'N8N_ENCRYPTION_KEY=%s\n' "$N8N_ENCRYPTION_KEY"
+              printf 'N8N_USER_MANAGEMENT_JWT_SECRET=%s\n' "$N8N_USER_MANAGEMENT_JWT_SECRET"
+              printf 'N8N_PORT=%s\n' "$N8N_PORT"
+              printf 'QDRANT_PORT=%s\n' "$QDRANT_PORT"
+              printf 'OLLAMA_PORT=%s\n' "$OLLAMA_PORT"
+              if [ -n "$OLLAMA_HOST" ]; then
+                printf 'OLLAMA_HOST=%s\n' "$OLLAMA_HOST"
+              fi
+            } > .env
 
             for port in "$N8N_PORT" "$QDRANT_PORT" "$OLLAMA_PORT"; do
               if ss -ltn "( sport = :$port )" | tail -n +2 | grep -q .; then
