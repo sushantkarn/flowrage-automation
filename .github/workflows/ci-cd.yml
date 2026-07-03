@@ -87,5 +87,14 @@ jobs:
           envs: DEPLOY_PATH,COMPOSE_PROFILE
           script: |
             set -e
-            chmod +x "${DEPLOY_PATH}/deploy.sh"
-            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "${DEPLOY_PATH}/deploy.sh"
+            if [ -f "${DEPLOY_PATH}/deploy.sh" ]; then
+              SCRIPT_PATH="${DEPLOY_PATH}/deploy.sh"
+            elif [ -f "${DEPLOY_PATH}/scripts/deploy.sh" ]; then
+              SCRIPT_PATH="${DEPLOY_PATH}/scripts/deploy.sh"
+            else
+              echo "ERROR: deploy.sh was not copied to the VPS"
+              find "${DEPLOY_PATH}" -maxdepth 2 -name 'deploy.sh' -print || true
+              exit 1
+            fi
+            chmod +x "$SCRIPT_PATH"
+            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "$SCRIPT_PATH"
