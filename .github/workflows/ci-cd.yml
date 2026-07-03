@@ -44,7 +44,7 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             set -e
-            mkdir -p "${{ env.DEPLOY_PATH }}/scripts"
+            mkdir -p "${{ env.DEPLOY_PATH }}"
             mkdir -p "${{ env.DEPLOY_PATH }}/n8n"
 
       - name: Copy Docker Compose file
@@ -75,7 +75,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           source: "scripts/deploy.sh"
-          target: "${{ env.DEPLOY_PATH }}/scripts"
+          target: "${{ env.DEPLOY_PATH }}"
 
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -87,5 +87,5 @@ jobs:
           envs: DEPLOY_PATH,COMPOSE_PROFILE
           script: |
             set -e
-            chmod +x "${DEPLOY_PATH}/scripts/deploy.sh"
-            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "${DEPLOY_PATH}/scripts/deploy.sh"
+            chmod +x "${DEPLOY_PATH}/deploy.sh"
+            DEPLOY_DIR="${DEPLOY_PATH}" COMPOSE_PROFILE="${COMPOSE_PROFILE}" bash "${DEPLOY_PATH}/deploy.sh"
